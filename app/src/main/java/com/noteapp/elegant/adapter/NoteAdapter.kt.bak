@@ -1,0 +1,82 @@
+package com.noteapp.elegant.adapter
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.noteapp.elegant.R
+import com.noteapp.elegant.data.Note
+import com.noteapp.elegant.databinding.ItemNoteBinding
+
+class NoteAdapter(
+    private val onNoteClick: (Note) -> Unit,
+    private val onNoteLongClick: (Note) -> Unit
+) : ListAdapter<Note, NoteAdapter.NoteViewHolder>(NoteDiffCallback()) {
+    
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NoteViewHolder {
+        val binding = ItemNoteBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return NoteViewHolder(binding)
+    }
+    
+    override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
+        holder.bind(getItem(position))
+    }
+    
+    inner class NoteViewHolder(
+        private val binding: ItemNoteBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+        
+        fun bind(note: Note) {
+            binding.apply {
+                textTitle.text = note.title
+                textContent.text = note.content
+                textDate.text = note.getFormattedDate()
+                
+                // Set pin icon visibility
+                pinIcon.visibility = if (note.isPinned) View.VISIBLE else View.GONE
+                
+                // Set card background color
+                val colorResId = when (note.color) {
+                    0 -> R.color.note_color_0
+                    1 -> R.color.note_color_1
+                    2 -> R.color.note_color_2
+                    3 -> R.color.note_color_3
+                    4 -> R.color.note_color_4
+                    5 -> R.color.note_color_5
+                    6 -> R.color.note_color_6
+                    else -> R.color.note_color_0
+                }
+                noteCard.setCardBackgroundColor(
+                    ContextCompat.getColor(itemView.context, colorResId)
+                )
+                
+                // Click listeners
+                root.setOnClickListener {
+                    onNoteClick(note)
+                }
+                
+                root.setOnLongClickListener {
+                    onNoteLongClick(note)
+                    true
+                }
+            }
+        }
+    }
+    
+    class NoteDiffCallback : DiffUtil.ItemCallback<Note>() {
+        override fun areItemsTheSame(oldItem: Note, newItem: Note): Boolean {
+            return oldItem.id == newItem.id
+        }
+        
+        override fun areContentsTheSame(oldItem: Note, newItem: Note): Boolean {
+            return oldItem == newItem
+        }
+    }
+}
