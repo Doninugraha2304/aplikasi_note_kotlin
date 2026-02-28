@@ -16,7 +16,8 @@ class NoteAdapter(
     private val onNoteClick: (Note) -> Unit,
     private val onNoteLongClick: (Note) -> Unit,
     private val onFavoriteClick: (Note) -> Unit,
-    private val onPinClick: (Note) -> Unit
+    private val onPinClick: (Note) -> Unit,
+    private val onDeleteSwipe: (Note) -> Unit
 ) : ListAdapter<Note, NoteAdapter.NoteViewHolder>(NoteDiffCallback()) {
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NoteViewHolder {
@@ -31,6 +32,8 @@ class NoteAdapter(
     override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
+    
+    fun getNoteAt(position: Int): Note = getItem(position)
     
     inner class NoteViewHolder(
         private val binding: ItemNoteBinding
@@ -47,11 +50,21 @@ class NoteAdapter(
                 val categoryIcon = Category.getCategoryIcon(note.category)
                 categoryChip.text = "$categoryIcon ${note.category}"
                 
-                // Set pin icon visibility
-                pinIcon.visibility = if (note.isPinned) View.VISIBLE else View.GONE
+                // Set pin icon visibility with animation
+                if (note.isPinned) {
+                    pinIcon.visibility = View.VISIBLE
+                    pinIcon.animate().scaleX(1f).scaleY(1f).setDuration(200).start()
+                } else {
+                    pinIcon.visibility = View.GONE
+                }
                 
-                // Set favorite icon visibility
-                favoriteIcon.visibility = if (note.isFavorite) View.VISIBLE else View.GONE
+                // Set favorite icon visibility with animation
+                if (note.isFavorite) {
+                    favoriteIcon.visibility = View.VISIBLE
+                    favoriteIcon.animate().scaleX(1f).scaleY(1f).setDuration(200).start()
+                } else {
+                    favoriteIcon.visibility = View.GONE
+                }
                 
                 // Set card background color
                 val colorResId = when (note.color) {
@@ -68,23 +81,46 @@ class NoteAdapter(
                     ContextCompat.getColor(itemView.context, colorResId)
                 )
                 
-                // Click listeners
+                // Add subtle scale animation on bind
+                root.alpha = 0f
+                root.scaleX = 0.9f
+                root.scaleY = 0.9f
+                root.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(200)
+                    .start()
+                
+                // Click listeners with ripple effect
                 root.setOnClickListener {
-                    onNoteClick(note)
+                    it.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).withEndAction {
+                        it.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                        onNoteClick(note)
+                    }.start()
                 }
                 
                 root.setOnLongClickListener {
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     onNoteLongClick(note)
                     true
                 }
                 
-                // Favorite icon click listener
+                // Favorite icon click listener with animation
                 favoriteIcon.setOnClickListener {
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                    it.animate().scaleX(1.3f).scaleY(1.3f).setDuration(100).withEndAction {
+                        it.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
+                    }.start()
                     onFavoriteClick(note)
                 }
                 
-                // Pin icon click listener
+                // Pin icon click listener with animation
                 pinIcon.setOnClickListener {
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                    it.animate().rotation(360f).setDuration(300).withEndAction {
+                        it.rotation = 0f
+                    }.start()
                     onPinClick(note)
                 }
             }

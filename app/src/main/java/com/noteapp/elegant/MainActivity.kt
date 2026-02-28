@@ -10,8 +10,11 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.noteapp.elegant.adapter.NoteAdapter
 import com.noteapp.elegant.data.Category
 import com.noteapp.elegant.data.Note
@@ -47,6 +50,9 @@ class MainActivity : AppCompatActivity() {
             },
             onPinClick = { note ->
                 togglePin(note)
+            },
+            onDeleteSwipe = { note ->
+                deleteNoteWithUndo(note)
             }
         )
         
@@ -54,6 +60,9 @@ class MainActivity : AppCompatActivity() {
             adapter = noteAdapter
             layoutManager = StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL)
         }
+        
+        // Setup swipe to delete
+        setupSwipeToDelete()
         
         // Setup ViewModel
         noteViewModel = ViewModelProvider(this)[NoteViewModel::class.java]
@@ -74,6 +83,9 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, AddEditNoteActivity::class.java)
             startActivity(intent)
         }
+        
+        // Setup Dashboard Card Animations
+        setupDashboardAnimations()
         
         // Setup Search
         binding.searchBar.addTextChangedListener(object : TextWatcher {
@@ -184,8 +196,38 @@ class MainActivity : AppCompatActivity() {
                 showDeleteAllDialog()
                 true
             }
+            R.id.sort_by_date -> {
+                sortNotesByDate()
+                true
+            }
+            R.id.sort_by_title -> {
+                sortNotesByTitle()
+                true
+            }
+            R.id.sort_by_color -> {
+                sortNotesByColor()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+    
+    private fun sortNotesByDate() {
+        val currentList = noteAdapter.currentList.sortedByDescending { it.timestamp }
+        noteAdapter.submitList(currentList)
+        Toast.makeText(this, "Sorted by date", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun sortNotesByTitle() {
+        val currentList = noteAdapter.currentList.sortedBy { it.title.lowercase() }
+        noteAdapter.submitList(currentList)
+        Toast.makeText(this, "Sorted by title", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun sortNotesByColor() {
+        val currentList = noteAdapter.currentList.sortedBy { it.color }
+        noteAdapter.submitList(currentList)
+        Toast.makeText(this, "Sorted by color", Toast.LENGTH_SHORT).show()
     }
     
     private fun showNoteOptionsDialog(note: Note) {
@@ -236,5 +278,73 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+    
+    private fun setupSwipeToDelete() {
+        val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+            0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+        ) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean = false
+            
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.adapterPosition
+                val note = noteAdapter.getNoteAt(position)
+                deleteNoteWithUndo(note)
+            }
+        })
+        
+        itemTouchHelper.attachToRecyclerView(binding.recyclerView)
+    }
+    
+    private fun deleteNoteWithUndo(note: Note) {
+        noteViewModel.delete(note)
+        
+        Snackbar.make(binding.root, "Note deleted", Snackbar.LENGTH_LONG)
+            .setAction("UNDO") {
+                noteViewModel.insert(note)
+                Toast.makeText(this, "Note restored", Toast.LENGTH_SHORT).show()
+            }
+            .setAnchorView(binding.fabAddNote)
+            .show()
+    }
+    
+    private fun setupDashboardAnimations() {
+        // Animate dashboard cards on load
+        val cards = listOf(
+            binding.totalNotesCard,
+            binding.pinnedNotesCard,
+            binding.favoriteNotesCard
+        )
+        
+        cards.forEachIndexed { index, card ->
+            card.alpha = 0f
+            card.translationY = 50f
+            card.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(400)
+                .setStartDelay((index * 100).toLong())
+                .start()
+            
+            // Add click animation for cards
+            card.setOnClickListener {
+                it.animate()
+                    .scaleX(0.95f)
+                    .scaleY(0.95f)
+                    .setDuration(100)
+                    .withEndAction {
+                        it.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(100)
+                            .start()
+                    }
+                    .start()
+            }
+        }
     }
 }

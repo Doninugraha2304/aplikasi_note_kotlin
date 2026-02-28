@@ -1,5 +1,6 @@
 package com.noteapp.elegant
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Menu
@@ -48,6 +49,7 @@ class AddEditNoteActivity : AppCompatActivity() {
         
         setupColorPalette()
         setupCategoryChips()
+        setupCharacterCounter()
         
         binding.toolbar.setNavigationOnClickListener {
             finish()
@@ -131,6 +133,19 @@ class AddEditNoteActivity : AppCompatActivity() {
         }
     }
     
+    private fun setupCharacterCounter() {
+        binding.editContent.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val text = s.toString()
+                val charCount = text.length
+                val wordCount = if (text.trim().isEmpty()) 0 else text.trim().split("\\s+".toRegex()).size
+                binding.contentInputLayout.helperText = "Characters: $charCount | Words: $wordCount"
+            }
+        })
+    }
+    
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.add_note_menu, menu)
         
@@ -170,7 +185,7 @@ class AddEditNoteActivity : AppCompatActivity() {
             }
             R.id.action_favorite -> {
                 isFavorite = !isFavorite
-                invalidateOptionsMenu() // Refresh menu icons
+                invalidateOptionsMenu()
                 Toast.makeText(
                     this,
                     if (isFavorite) "Added to favorites ⭐" else "Removed from favorites",
@@ -180,12 +195,16 @@ class AddEditNoteActivity : AppCompatActivity() {
             }
             R.id.action_pin -> {
                 isPinned = !isPinned
-                invalidateOptionsMenu() // Refresh menu icons
+                invalidateOptionsMenu()
                 Toast.makeText(
                     this,
                     if (isPinned) "Note pinned 📌" else "Note unpinned",
                     Toast.LENGTH_SHORT
                 ).show()
+                true
+            }
+            R.id.action_share -> {
+                shareNote()
                 true
             }
             android.R.id.home -> {
@@ -194,6 +213,32 @@ class AddEditNoteActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+    
+    private fun shareNote() {
+        val title = binding.editTitle.text.toString().trim()
+        val content = binding.editContent.text.toString().trim()
+        
+        if (title.isEmpty() && content.isEmpty()) {
+            Toast.makeText(this, "Nothing to share", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val shareText = buildString {
+            if (title.isNotEmpty()) {
+                append("📝 $title\n\n")
+            }
+            append(content)
+            append("\n\n---\nShared from Elegant Notes")
+        }
+        
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "text/plain"
+        }
+        
+        startActivity(Intent.createChooser(shareIntent, "Share note via"))
     }
     
     private fun saveNote() {
